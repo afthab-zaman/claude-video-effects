@@ -9,6 +9,8 @@ The user is usually not technical. Keep replies short and friendly, do the work 
 
 All paths below are relative to this skill's folder (the folder this SKILL.md is in). Use its absolute path in commands.
 
+If that folder is read-only (as in the Claude app, where skills live under /mnt/skills), copy the whole folder to a writable working directory first (e.g. `cp -r <skill folder> ./effects`) and use the copy for everything below.
+
 ## 1. First run: set up (once)
 Run `bash scripts/setup.sh`. It prints `READY` when done (the first time takes 1 to 3 minutes).
 - `NEED_FFMPEG`: install it for them. On a Mac: `brew install ffmpeg` (if `brew` is missing, tell them to install Homebrew from brew.sh first). On Windows: `winget install ffmpeg`.
@@ -21,7 +23,7 @@ Run `bash scripts/setup.sh`. It prints `READY` when done (the first time takes 1
 - Effect: from `/effects <name>`, or from what they describe. Match their words to the table below. Unsure? Show them the list.
 
 ## 3. Find the timing
-- If they say "on the word X" or "when I say ...", run `.venv/bin/python scripts/words.py <video>` and use those times.
+- If they say "on the word X" or "when I say ...", run `.venv/bin/python scripts/words.py <video>` and use those times. If the transcriber can't download its model (some sandboxes block it), ask them for the rough second instead.
 - If they give no timing, apply the effect for the whole clip, or ask which part (one short question).
 - Short windows look best: 1.5 to 4 seconds per effect.
 
