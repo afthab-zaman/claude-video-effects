@@ -1434,7 +1434,7 @@ def comment_sheet(c, e):
     d.line([(0, 80 * u), (sw, 80 * u)], fill=(60, 60, 64, 255), width=max(1, int(2 * u)))
     def avatar(sz):
         a = Image.new('RGBA', (int(sz), int(sz)), (0, 0, 0, 0)); ad = ImageDraw.Draw(a)
-        ad.ellipse([0, 0, sz - 1, sz - 1], fill=(233, 90, 140, 255)); ad.text((sz / 2, sz / 2), 'V', font=font('uib', sz * 0.5), fill=(255, 255, 255, 255), anchor='mm')
+        ad.ellipse([0, 0, sz - 1, sz - 1], fill=(233, 90, 140, 255)); ad.text((sz / 2, sz / 2), 'Y', font=font('uib', sz * 0.5), fill=(255, 255, 255, 255), anchor='mm')
         return a
     if c.lt < t_post:
         d.text((sw / 2, 190 * u), 'Start the conversation.', font=font('uim', 21 * u), fill=grey, anchor='mm')
@@ -2087,8 +2087,29 @@ def probe(path):
     return (fr if fps <= 30.5 else '30'), min(fps, 30.0), float(j['format']['duration']), w, h
 
 
+_hdr = {}
+def hdr_chain(path):
+    """iPhone videos are usually HDR (HLG or PQ). Without tone mapping they come out grey and washed out,
+    so convert them to normal SDR colours first. Returns a filter prefix ('' for SDR videos)."""
+    if path not in _hdr:
+        try:
+            tr = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=color_transfer',
+                                 '-of', 'default=nw=1:nk=1', path], capture_output=True, text=True).stdout.strip()
+        except Exception:
+            tr = ''
+        chain = ''
+        if tr in ('arib-std-b67', 'smpte2084'):
+            chain = ('zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=hable:desat=0,'
+                     'zscale=t=bt709:m=bt709:r=tv,format=yuv420p,')
+            ok = subprocess.run(['ffmpeg', '-v', 'error', '-i', path, '-frames:v', '1', '-vf', chain + 'null', '-f', 'null', '-'],
+                                capture_output=True).returncode == 0
+            if not ok: chain = ''  # this ffmpeg has no zscale: fall back to the plain (washed out) look rather than failing
+        _hdr[path] = chain
+    return _hdr[path]
+
+
 def read_frames(path, W, H, fr):
-    p = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', path, '-vf', f'fps={fr},scale={W}:{H}:flags=bicubic,format=rgb24', '-f', 'rawvideo', '-'],
+    p = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', path, '-vf', f'{hdr_chain(path)}fps={fr},scale={W}:{H}:flags=bicubic,format=rgb24', '-f', 'rawvideo', '-'],
                          stdout=subprocess.PIPE, bufsize=10 ** 8)
     n = W * H * 3
     try:
